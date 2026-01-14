@@ -4,160 +4,173 @@ import { useState } from "react";
 
 export default function Page() {
   const [file, setFile] = useState<File | null>(null);
-  const [message, setMessage] = useState<string>("");
-
+  const [srtFile, setSrtFile] = useState<File | null>(null);
   const [videoId, setVideoId] = useState<number | null>(null);
-  const [loadingUpload, setLoadingUpload] = useState(false);
-  const [loadingClip, setLoadingClip] = useState(false);
+  const [status, setStatus] = useState<string>("");
+  const [clips, setClips] = useState<any[]>([]);
 
-  const [startTime, setStartTime] = useState<number>(0);
-  const [endTime, setEndTime] = useState<number>(10);
-  const [title, setTitle] = useState<string>("");
-
-  async function upload() {
+  async function uploadVideo() {
     if (!file) return;
 
-    setLoadingUpload(true);
-    setMessage("");
+    setStatus("Uploading video...");
 
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/upload", {
+    const res = await fetch("/api/upload", {
       method: "POST",
       body: formData,
     });
 
-    const data = await response.json();
+    const data = await res.json();
 
-    if (data.success) {
+    if (data?.video?.id) {
       setVideoId(data.video.id);
-      setMessage("✅ Upload successful!");
+      setClips([]);
+      setStatus("✅ Video uploaded successfully");
     } else {
-      setMessage("❌ Upload failed");
+      setStatus("❌ Video upload failed");
     }
-
-    setLoadingUpload(false);
   }
 
-  async function createClip() {
-    if (!videoId) return;
-
-    setLoadingClip(true);
-    setMessage("");
-
-    const response = await fetch("/api/clip", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        videoId,
-        startTime,
-        endTime,
-        title,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      setMessage("✅ Clip created successfully!");
-    } else {
-      setMessage("❌ Clip creation failed");
+  async function uploadTranscript() {
+    if (!srtFile || !videoId) {
+      alert("Upload video first");
+      return;
     }
 
-    setLoadingClip(false);
+    setStatus("Uploading transcript...");
+
+    const formData = new FormData();
+    formData.append("file", srtFile);
+    formData.append("videoId", String(videoId));
+
+    const res = await fetch("/api/transcript/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (res.ok) {
+      setStatus("✅ Transcript uploaded successfully");
+    } else {
+      setStatus("❌ Transcript upload failed");
+    }
+  }
+
+  async function generateClips() {
+    if (!videoId) {
+      alert("Upload video and transcript first");
+      return;
+    }
+
+    setStatus("Generating clips...");
+
+    const res = await fetch(`/api/process/${videoId}`, {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    if (data?.clips?.length > 0) {
+      setStatus(`✅ Generated ${data.clips.length} clips`);
+      await loadClips(videoId);
+    } else {
+      setStatus("❌ No clips generated");
+    }
+  }
+
+  async function loadClips(videoId: number) {
+    const res = await fetch(`/api/video/${videoId}/clips`);
+    const data = await res.json();
+    setClips(data.clips || []);
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex justify-center items-start p-8">
-      <div className="w-full max-w-2xl space-y-8">
+    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <div className="w-full max-w-md p-6 bg-gray-900 rounded-xl space-y-4 shadow-lg">
 
-        <h1 className="text-3xl font-bold">🎬 Poseidon Video Tool</h1>
+        <h1 className="text-xl font-bold text-center">🎬 Poseidon Video Tool</h1>
 
-        {/* Upload Card */}
-        <div className="bg-gray-900 rounded-xl p-6 space-y-4 shadow-lg">
-          <h2 className="text-xl font-semibold">1. Upload Video</h2>
+        {status && (
+          <div className="text-center text-sm text-green-400">{status}</div>
+        )}
 
+        <div className="space-y-2">
+          <label className="block text-sm">1. Upload Video</label>
           <input
             type="file"
             accept="video/*"
-            className="block w-full text-sm text-gray-300
-                       file:mr-4 file:py-2 file:px-4
-                       file:rounded-lg file:border-0
-                       file:text-sm file:font-semibold
-                       file:bg-blue-600 file:text-white
-                       hover:file:bg-blue-700"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="w-full text-sm text-slate-300
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-md file:border-0
+              file:text-sm file:font-semibold
+              file:bg-slate-700 file:text-white
+              hover:file:bg-slate-600
+              cursor:pointer"
           />
-
           <button
-            onClick={upload}
-            disabled={loadingUpload}
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg disabled:opacity-50"
+            onClick={uploadVideo}
+            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded"
           >
-            {loadingUpload ? "Uploading..." : "Upload"}
+            Upload Video
           </button>
-
-          {videoId && (
-            <p className="text-green-400">Video uploaded. ID: {videoId}</p>
-          )}
         </div>
 
-        {/* Clip Card */}
-        {videoId && (
-          <div className="bg-gray-900 rounded-xl p-6 space-y-4 shadow-lg">
-            <h2 className="text-xl font-semibold">2. Create Clip</h2>
+        <div className="space-y-2">
+          <label className="block text-sm">2. Upload Transcript (SRT file format)</label>
+          <input
+            type="file"
+            accept="video/*"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="w-full text-sm text-slate-300
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-md file:border-0
+              file:text-sm file:font-semibold
+              file:bg-slate-700 file:text-white
+              hover:file:bg-slate-600
+              cursor:pointer"
+          />
+          <button
+            onClick={uploadTranscript}
+            className="w-full bg-green-600 hover:bg-green-700 py-2 rounded"
+          >
+            Upload Transcript
+          </button>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm text-gray-400">Start (sec)</label>
-                <input
-                  type="number"
-                  className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700"
-                  value={startTime}
-                  onChange={(e) => setStartTime(Number(e.target.value))}
-                />
+        <button
+          onClick={generateClips}
+          className="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded"
+        >
+        Generate Clips
+        </button>
+
+        {clips.length > 0 && (
+          <div className="space-y-2 pt-4">
+            <h2 className="text-lg font-semibold">Generated Clips</h2>
+
+            {clips.map((clip) => (
+              <div
+                key={clip.id}
+                className="flex justify-between items-center bg-gray-800 p-3 rounded"
+              >
+                <div>
+                  <p className="text-sm font-medium line-clamp-2">{clip.title}</p>
+                  <p className="text-xs text-gray-400">{clip.orientation}</p>
+                </div>
+
+                <a
+                  href={`/api/clip/download/${clip.id}`}
+                  className="text-blue-400 hover:underline text-sm"
+                >
+                  Download
+                </a>
               </div>
-
-              <div>
-                <label className="text-sm text-gray-400">End (sec)</label>
-                <input
-                  type="number"
-                  className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700"
-                  value={endTime}
-                  onChange={(e) => setEndTime(Number(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-400">Title</label>
-                <input
-                  type="text"
-                  className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={createClip}
-              disabled={loadingClip}
-              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg disabled:opacity-50"
-            >
-              {loadingClip ? "Creating..." : "Create Clip"}
-            </button>
+            ))}
           </div>
         )}
 
-        {/* Status Message */}
-        {message && (
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-            {message}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -43,10 +43,8 @@ export async function POST(request: Request) {
 
   const duration = endTime - startTime;
 
-  // Horizontal clip
   const horizontalCmd = `ffmpeg -y -i "${inputPath}" -ss ${startTime} -t ${duration} -c copy "${horizontalPath}"`;
 
-  // Vertical clip (9:16 crop)
   const verticalCmd = `ffmpeg -y -i "${inputPath}" -ss ${startTime} -t ${duration} -vf "crop=ih*9/16:ih" "${verticalPath}"`;
 
   try {
