@@ -19,6 +19,7 @@ model Video {
   filePath String
   createdAt DateTime @default(now())
   clips Clip[]
+  transcripts TranscriptSegment[]
 }
 
 model Clip {
@@ -30,6 +31,16 @@ model Clip {
   title String?
   filePath String
   createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id])
+}
+
+model TranscriptSegment {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  startTime Int
+  endTime   Int
+  text      String
 
   video Video @relation(fields: [videoId], references: [id])
 }
