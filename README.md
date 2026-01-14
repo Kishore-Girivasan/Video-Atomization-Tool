@@ -7,6 +7,7 @@ This project demonstrates a complete backend pipeline for:
 - Simple UI to drive the workflow
 
 Setup steps:
+
 Step 1: Clone the repository
 git clone https://github.com/your-username/poseidon-video-tool.git
 cd poseidon-video-tool
